@@ -128,13 +128,13 @@ def joystick_run():
 		return
 
 	try:
-		c = 0
+		c177 = 0
+		c178 = 0
 
 		if options.verbose:
 			print('Ready. Use ctrl-c to quit.')
 		while True:
 			while midi.poll():
-				c = 0
 				ipt = midi.read(1)
 				#print(ipt)
 				key = tuple(ipt[0][0][0:2])
@@ -146,12 +146,20 @@ def joystick_run():
 				opt = table[key]
 				if options.verbose:
 					print(key, '->', opt, reading)
-				if key[0] == 177:
+				if key[0] == 177 or key[0] == 178:
+					if key[0] == 177:
+						c177 = 0
+					else:
+						c178 = 0
 					# A slider input
 					# Check that the output axis is valid
 					# Note: We did not check if that axis is defined in vJoy
 					if not opt[1] in axis:
 						continue
+					if reading == 1:
+						reading = 32
+					else:
+						reading = 96
 					reading = (reading + 1) << 8
 					vjoy.SetAxis(reading, opt[0], axis[opt[1]])
 				elif key[0] == 145:
@@ -161,11 +169,16 @@ def joystick_run():
 					# A button off input
 					vjoy.SetBtn(reading, opt[0], int(opt[1]))
 			else:
-				c = c + 1
-				if c == 2:
-					c = 0
+				c177 = c177 + 1
+				c178 = c178 + 1
+				if c177 == 2:
+					c177 = 0
 					reading = (64 + 1) << 8
 					vjoy.SetAxis(reading, 1, axis['X'])
+				if c178 == 2:
+					c178 = 0
+					reading = (64 + 1) << 8
+					vjoy.SetAxis(reading, 1, axis['Y'])
 			time.sleep(0.001)
 	except:
 		#traceback.print_exc()
