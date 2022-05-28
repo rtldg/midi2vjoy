@@ -1,23 +1,23 @@
 #  midi2vjoy.py
-#  
+#
 #  Copyright 2017  <c0redumb>
-#  
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
-#  
+#
+#
 
 import sys, os, time, traceback
 import ctypes
@@ -29,7 +29,7 @@ import winreg
 # Axis mapping
 axis = {'X': 0x30, 'Y': 0x31, 'Z': 0x32, 'RX': 0x33, 'RY': 0x34, 'RZ': 0x35,
 		'SL0': 0x36, 'SL1': 0x37, 'WHL': 0x38, 'POV': 0x39}
-		
+
 # Globals
 options = None
 
@@ -43,7 +43,7 @@ def midi_test():
 		if info[2]:
 			print(i, info[1].decode())
 	d = int(input('Select MIDI device to test: '))
-	
+
 	# Open the device for testing
 	try:
 		print('Opening MIDI device:', d)
@@ -55,7 +55,7 @@ def midi_test():
 			time.sleep(0.1)
 	except:
 		m.close()
-		
+
 def read_conf(conf_file):
 	'''Read the configuration file'''
 	table = {}
@@ -75,7 +75,7 @@ def read_conf(conf_file):
 			if not vid in vids:
 				vids.append(vid)
 	return (table, vids)
-		
+
 def joystick_run():
 	# Process the configuration file
 	if options.conf == None:
@@ -90,7 +90,7 @@ def joystick_run():
 	except:
 		print('Error processing the configuration file:', options.conf)
 		return
-		
+
 	# Getting the MIDI device ready
 	if options.midi == None:
 		print('Must specify a MIDI interface to use')
@@ -102,7 +102,7 @@ def joystick_run():
 	except:
 		print('Error opting MIDI device:', options.midi)
 		return
-		
+
 	# Load vJoysticks
 	try:
 		# Load the vJoy library
@@ -114,7 +114,7 @@ def joystick_run():
 		dll_file = os.path.join(installpath[0], 'x64', 'vJoyInterface.dll')
 		vjoy = ctypes.WinDLL(dll_file)
 		#print(vjoy.GetvJoyVersion())
-		
+
 		# Getting ready
 		for vid in vids:
 			if options.verbose:
@@ -126,12 +126,15 @@ def joystick_run():
 		#traceback.print_exc()
 		print('Error initializing virtual joysticks')
 		return
-	
+
 	try:
+		c = 0
+
 		if options.verbose:
 			print('Ready. Use ctrl-c to quit.')
 		while True:
 			while midi.poll():
+				c = 0
 				ipt = midi.read(1)
 				#print(ipt)
 				key = tuple(ipt[0][0][0:2])
@@ -143,7 +146,7 @@ def joystick_run():
 				opt = table[key]
 				if options.verbose:
 					print(key, '->', opt, reading)
-				if key[0] == 176:
+				if key[0] == 177:
 					# A slider input
 					# Check that the output axis is valid
 					# Note: We did not check if that axis is defined in vJoy
@@ -151,28 +154,34 @@ def joystick_run():
 						continue
 					reading = (reading + 1) << 8
 					vjoy.SetAxis(reading, opt[0], axis[opt[1]])
-				elif key[0] == 144:
+				elif key[0] == 145:
 					# A button input
 					vjoy.SetBtn(reading, opt[0], int(opt[1]))
 				elif key[0] == 128:
 					# A button off input
 					vjoy.SetBtn(reading, opt[0], int(opt[1]))
-			time.sleep(0.1)
+			else:
+				c = c + 1
+				if c == 2:
+					c = 0
+					reading = (64 + 1) << 8
+					vjoy.SetAxis(reading, 1, axis['X'])
+			time.sleep(0.001)
 	except:
 		#traceback.print_exc()
 		pass
-		
+
 	# Relinquish vJoysticks
 	for vid in vids:
 		if options.verbose:
 			print('Relinquishing vJoystick:', vid)
 		vjoy.RelinquishVJD(vid)
-	
+
 	# Close MIDI device
 	if options.verbose:
 		print('Closing MIDI device')
 	midi.close()
-		
+
 def main():
 	# parse arguments
 	parser = OptionParser()
@@ -188,14 +197,14 @@ def main():
 						  action="store_false", dest="verbose")
 	global options
 	(options, args) = parser.parse_args()
-	
+
 	pygame.midi.init()
-	
+
 	if options.runtest:
 		midi_test()
 	else:
 		joystick_run()
-	
+
 	pygame.midi.quit()
 
 if __name__ == '__main__':
