@@ -66,10 +66,7 @@ def read_conf(conf_file):
 				continue
 			fs = l.split()
 			key = (int(fs[0]), int(fs[1]))
-			if fs[0] == '144':
-				val = (int(fs[2]), int(fs[3]))
-			else:
-				val = (int(fs[2]), fs[3])
+			val = (int(fs[2]), fs[3])
 			table[key] = val
 			vid = int(fs[2])
 			if not vid in vids:
@@ -128,8 +125,7 @@ def joystick_run():
 		return
 
 	try:
-		c177 = 0
-		c178 = 0
+		axis_center = {}
 
 		if options.verbose:
 			print('Ready. Use ctrl-c to quit.')
@@ -146,39 +142,20 @@ def joystick_run():
 				opt = table[key]
 				if options.verbose:
 					print(key, '->', opt, reading)
-				if key[0] == 177 or key[0] == 178:
-					if key[0] == 177:
-						c177 = 0
-					else:
-						c178 = 0
-					# A slider input
-					# Check that the output axis is valid
-					# Note: We did not check if that axis is defined in vJoy
-					if not opt[1] in axis:
-						continue
-					if reading == 1:
-						reading = 32
-					else:
-						reading = 96
+				if opt[1] in axis:
+					axis_center[opt[1]] = 0
+					reading = 32 if reading == 1 else 96
 					reading = (reading + 1) << 8
 					vjoy.SetAxis(reading, opt[0], axis[opt[1]])
-				elif key[0] == 145:
-					# A button input
-					vjoy.SetBtn(reading, opt[0], int(opt[1]))
-				elif key[0] == 128:
-					# A button off input
+				else:
 					vjoy.SetBtn(reading, opt[0], int(opt[1]))
 			else:
-				c177 = c177 + 1
-				c178 = c178 + 1
-				if c177 == 2:
-					c177 = 0
-					reading = (64 + 1) << 8
-					vjoy.SetAxis(reading, 1, axis['X'])
-				if c178 == 2:
-					c178 = 0
-					reading = (64 + 1) << 8
-					vjoy.SetAxis(reading, 1, axis['Y'])
+				for k in axis_center:
+					axis_center[k] += 1
+					if axis_center[k] == 2:
+						axis_center[k] = 0
+						reading = (64 + 1) << 8
+						vjoy.SetAxis(reading, 1, axis[k])
 			time.sleep(0.001)
 	except:
 		#traceback.print_exc()
